@@ -46,12 +46,16 @@ defmodule Mafia.Room do
     def vote_kick(room, player, playerid) do
         player_to_kick = Map.get(room.players, playerid)
         player_that_voted = Map.get(room.players, player)
-
+        
         cond do
+            player_to_kick == nil or player_that_voted == nil ->
+                {:not_exists, room} 
+            player_to_kick.class == 1 and player_that_voted.class == 1 and room.turn == 0 ->
+                {:cannot_vote_mafia, room}
+            room.turn == 0 and player_that_voted.class == 0 ->
+                {:cannot_vote, room}
             player == playerid ->
                 {:same_person, room}
-            player_to_kick == nil or player_that_voted == nil ->
-                {:not_exists, room}
             player_to_kick.dead ->
                 {:voting_already_dead, room}
             player_that_voted.dead ->
@@ -95,6 +99,26 @@ defmodule Mafia.Room do
         |> Enum.all?(fn {_, plr} -> plr.voted != nil end)
     end
     
+    @doc """
+        Está função faz o assasino matar um outro player, 
+        que esteja na martida que não seja outro assasino
+        ou um player expectador
+    """
+
+    def kill_player(room, playerid) do
+        if room.players[playerid].class == 1 ||  room.players[playerid].dead do
+            {:cannot_kill, room}
+        else 
+            new_plr = Map.put(room.players[playerid], :dead, true)
+            new_players = Map.put(room.players, playerid, new_plr)
+            {:ok, Map.put(room, :players, new_players)}
+        end 
+    end
+
+    @doc """
+        Está função remove um player morto da partida,
+        deixando ele como expectador
+    """
     def rem_player(room, playerid) do
         players = Map.delete(room.players, playerid)
         new_room = room
@@ -102,9 +126,6 @@ defmodule Mafia.Room do
         |> Map.put(:players_count, room.players_count - 1)
     end
 
-    @doc """
-        Adiciona um player na partida
-    """
 
     def add_player(room, player) do
         players = Map.put(room.players, player.id, player)
@@ -114,22 +135,40 @@ defmodule Mafia.Room do
     end
 
     @doc """
-        Transforma o dia em noite
+        Checa se todos os mafias votaram
     """
 
-    defp turn_day(room) do
-        # verifica quem o Mafia votou
+    def all_mafia_voted?(room) do
+        room.players
+        |> Enum.filter(fn {_, plr} -> plr.class == 1 and not plr.dead end)
+        |> Enum.all?(fn {_, plr} -> plr.voted != nil end) 
     end
 
-    defp turn_night(room) do
-        # verifica quem as pessoas votaram
-        # remove
+    @doc """
+        Transforma o dia em noite
+    """
+    defp night(room) do
+        people_to_kill = room.players
+        |> Enum.filter(fn {_, plr} -> plr.class == 1 and not plr.dead end)
+        |> Enum.map(fn {_, plr} -> plr.voted end) 
+        
+        room = Enum.reduce(people_to_kill, room, fn id, room -> 
+            {:ok, room} = kill_player(room, id)
+            room
+        end)
+
+        {:killed, people_to_kill, room}
+    end
+
+    defp day(room) do
         minimum = trunc(floor(room.players_count/2))
-        [{id, num} | tail] = check_votes(room) |> Enum.sort(fn {_, valueone},{_, valuetwo} -> valueone >= valuetwo end) 
+        [{id, num} | tail] = check_votes(room) |> Enum.sort(fn {_, valueone}, {_, valuetwo} -> valueone >= valuetwo end) 
         [{_, num2} | _] = tail
         if num != num2 and num >= minimum do
             player = Map.put(room.players[id], :dead, true)
-            {:eliminated, id, Map.put(room, :players, Map.put(room.players, id, player))}
+            room = Map.put(room, :players, Map.put(room.players, id, player))
+            |> Map.put(:turn, 0)
+            {:eliminated, id, room} 
         else
             {:no_one, room}
         end
@@ -137,9 +176,9 @@ defmodule Mafia.Room do
 
     def turn(room) do
         if room.turn == 0 do
-            turn_day(room)
+            night(room)
         else
-            turn_night(room)
+            day(room)
         end
     end
 
