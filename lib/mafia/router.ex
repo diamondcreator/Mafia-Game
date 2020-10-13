@@ -10,9 +10,10 @@ defmodule Mafia.Router do
 
   get "/" do
     Logger.debug "Someone entered in the website :O"
-    send_resp(conn, 200, "Welcome")
+    body = EEx.eval_file("priv/static/index.html")
+    send_resp(conn,  200, body)
   end 
-
+  
   match _ do
     send_resp(conn, 404, "Oops!")
   end
