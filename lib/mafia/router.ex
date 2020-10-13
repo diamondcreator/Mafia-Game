@@ -8,13 +8,10 @@ defmodule Mafia.Router do
 
   forward("/static", to: Mafia.StaticRouter)
 
-  get "/" do
+  get "*" do
     Logger.debug "Someone entered in the website :O"
     body = EEx.eval_file("priv/static/index.html")
     send_resp(conn,  200, body)
   end 
   
-  match _ do
-    send_resp(conn, 404, "Oops!")
-  end
 end   
