@@ -1,23 +1,33 @@
 <template>
   <div>
-    Home
+    <card></card>
   </div>
 </template>
 
 <script>
+  import Card from '../components/Card.vue'
+
   export default {
-    name: 'Home'
+    name: 'Home',
+    components: {
+      'card': Card
+    }
   }
 </script>
 
 <style>
+
+  @import url('https://fonts.googleapis.com/css2?family=Lato:wght@700&display=swap');
+
+  body {
+    background: #1A1A1A;
+  }
+
   #app {
     font-family: 'Avenir', Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-align: center;
-    color: #2c3e50;
-    margin-top: 60px;
   }
 
   h1, h2 {
